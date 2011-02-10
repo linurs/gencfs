@@ -1,10 +1,27 @@
 #!/usr/bin/python
-# Gui to mount encfs
-# to do:
-#   check better if password and path are empty
-# changed:
-# spelling error removed from the gui
+
+## @package gencfs 
+# @author urs lindegger urs@linurs.org  
+
+## @todo 
+# - add a to do list
+#
+# Bug fixes and improvements from previous version:
+# ---------------------------------------------------
+# 
+# From Version 0.1 to 0.2
+# -----------------------
+# - popen4 does not work anymore since it is deprecated and replaced by subprocess module 
+#   as a guideline http://www.doughellmann.com/PyMOTW/subprocess/ has been used
+# 
+
+## @mainpage gencfs
+# gencfs is a simple gui for encfs
+# 
+
 import os
+import subprocess
+import shlex
 import tkMessageBox 
 import Tkinter 
 
@@ -17,31 +34,35 @@ def encfsmount():
  password=window.password.get()
  pathtoencfs=window.pathencfs.get()
  cmd ="encfs "+pathtoencfs+"/.crypt "+pathtoencfs+"/crypt"
- pout,  pin =os.popen4(cmd)
- pout.write(password)
- pout.close()
- childresp=pin.readline() # get password prompt
- childresp=pin.readline() # get response (error)
- pin.close()
- if len(childresp)==0:
+ args=shlex.split(cmd)
+ p = subprocess.Popen(args, 
+                      stdin=subprocess.PIPE, 
+                      stdout=subprocess.PIPE,
+                      stderr=subprocess.STDOUT,
+                      ) # open new process
+ stdout_value, stderr_value = p.communicate(password)
+ if ((stderr_value==None)and(stdout_value!="EncFS Password: ")):
   tkMessageBox.showinfo("mount","Successfully mounted")
   mountflag=1
   window.mountbutton.config(relief=Tkinter.SUNKEN)
   window.umountbutton.config(relief=Tkinter.RAISED)
  else: 
-  tkMessageBox.showinfo("mount",childresp)
+  tkMessageBox.showinfo("mount",stdout_value)
  return 0  
-	
+
 def encfsumount():
  global mountflag
  global pathtoencfs
  pathtoencfs=window.pathencfs.get()
  cmd ="fusermount -u "+pathtoencfs+"/crypt"
- pout,  pin =os.popen4(cmd)
- pout.close()
- childresp=pin.readline()
- pin.close()
- if len(childresp)==0:
+ args=shlex.split(cmd)
+ p = subprocess.Popen(args, 
+                      stdin=subprocess.PIPE, 
+                      stdout=subprocess.PIPE,
+                      stderr=subprocess.STDOUT,
+                      ) # open new process
+ stdout_value, stderr_value = p.communicate()
+ if ((stderr_value==None)and(stdout_value=="")):
   tkMessageBox.showinfo("umount","Successfully umounted")
   mountflag=0
   window.umountbutton.config(relief=Tkinter.SUNKEN)
@@ -50,7 +71,7 @@ def encfsumount():
   tkMessageBox.showinfo("umount",childresp)
  return 0
 
-# Main program, get persistent data as path to encfs 
+## Main program, get persistent data as path to encfs 
 
 #maybe do not create the files here do it on exit
 userpath=os.path.expanduser("~")     # check what user
