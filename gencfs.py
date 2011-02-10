@@ -33,15 +33,15 @@ def encfsmount():
  global pathtoencfs
  password=window.password.get()
  pathtoencfs=window.pathencfs.get()
- cmd ="encfs "+pathtoencfs+"/.crypt "+pathtoencfs+"/crypt"
+ cmd ="encfs -S "+pathtoencfs+"/.crypt "+pathtoencfs+"/crypt" # call encfs without promting for password
  args=shlex.split(cmd)
- p = subprocess.Popen(args, 
+ p = subprocess.Popen(args,  
                       stdin=subprocess.PIPE, 
                       stdout=subprocess.PIPE,
-                      stderr=subprocess.STDOUT,
+                      stderr=subprocess.STDOUT, # standard err are passed to stdout
                       ) # open new process
- stdout_value, stderr_value = p.communicate(password)
- if ((stderr_value==None)and(stdout_value!="EncFS Password: ")):
+ stdout_value, stderr_value = p.communicate(password) # communicate is a one time action, afterwards p is closed
+ if (stdout_value==""):
   tkMessageBox.showinfo("mount","Successfully mounted")
   mountflag=1
   window.mountbutton.config(relief=Tkinter.SUNKEN)
@@ -59,25 +59,25 @@ def encfsumount():
  p = subprocess.Popen(args, 
                       stdin=subprocess.PIPE, 
                       stdout=subprocess.PIPE,
-                      stderr=subprocess.STDOUT,
+                      stderr=subprocess.STDOUT, # standard err are passed to stdout
                       ) # open new process
- stdout_value, stderr_value = p.communicate()
- if ((stderr_value==None)and(stdout_value=="")):
+ stdout_value, stderr_value = p.communicate()# communicate is a one time action, afterwards p is closed
+ if (stdout_value==""):
   tkMessageBox.showinfo("umount","Successfully umounted")
   mountflag=0
   window.umountbutton.config(relief=Tkinter.SUNKEN)
   window.mountbutton.config(relief=Tkinter.RAISED)
  else: 
-  tkMessageBox.showinfo("umount",childresp)
+  tkMessageBox.showinfo("umount",stdout_value)
  return 0
 
 ## Main program, get persistent data as path to encfs 
 
 #maybe do not create the files here do it on exit
-userpath=os.path.expanduser("~")     # check what user
+userpath=os.path.expanduser("~")          # check what user
 configdir=userpath+"/.GEncFs"
 if os.access(configdir, os.F_OK)==False:  # check if user has a directory containing persistent data
-  os.mkdir(configdir,0777)                   # if not create the directory
+  os.mkdir(configdir,0777)                # if not create the directory
 configfile="conf"                            
 pathtoconfig=configdir+"/"+configfile
 if os.access(pathtoconfig, os.F_OK)==False:   # check if file exists containing persistent data
