@@ -1,0 +1,10 @@
+# ignore backup files
+*.py~
+# ignore eric stuff
+.eric5project/*
+gencfs.e4p
+# ignore doxygen output
+html/*
+
+
+
