@@ -5,6 +5,7 @@ gencfs.e4p
 # ignore directories
 .eric5project/*
 .eric6project/*
+__pycache__
 html/*
 
 
