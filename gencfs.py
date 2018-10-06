@@ -4,6 +4,20 @@
 # @author urs lindegger urs@linurs.org  
 
 ## @todo 
+# - password does not work okpassword
+#    try with (caution it is not encfs it is encfsctl):
+#       --extpass==/usr/bin/x11-ssh-askpass (I guess it willnot work since it is encfsctl)
+#       pty
+#       pexpect
+# - 1.9.2 should has   encfsctl autopasswd (root dir) -- change password for volume, taking password from standard input. No prompts are issued.
+#       does -S, --stdinpass work (I guess not since it is not encfsctl)?
+# - expect is a command line tool
+
+# - import pexpect with try
+# - check, after creation i could not mount in the first atempt, in the second it worked 
+# - use tab insted of new window or withdraw() Removes the window from the screen (without destroying it). To redraw the window, use deiconify. 
+#       When the window has been withdrawn, the state method returns “withdrawn”. Top window can be more than once 
+# - use event handlers 
 # - doxygen
 # - block top window when child windows are open
 # - support checkfiles other than .encfs6.xml or just to see if files are there
@@ -19,6 +33,8 @@
 import os
 import subprocess
 import shlex
+import time
+import pexpect
 
 import tkinter 
 import tkinter.messagebox 
@@ -61,7 +77,7 @@ class App():
         self.menubar = tkinter.Menu(self.window)
         filemenu = tkinter.Menu(self.menubar, tearoff=0)
         filemenu.add_command(label="Add directory for .crypt and crypt", command=self.add)
-        filemenu.add_command(label="Remove directory", command=self.remove)
+        filemenu.add_command(label="Remove directory from list", command=self.remove)
         filemenu.add_command(label="Create .crypt and crypt", command=self.create)
         filemenu.add_separator()
         filemenu.add_command(label="Change Password", command=self.passwd)
@@ -178,6 +194,34 @@ class App():
           tkinter.messagebox.showinfo("mount",stdout_value)
          return 0     
 
+    def create(self):
+         i=self.window.listbox.curselection()
+         if len(i)>0:
+          self.index=i[0]
+         pathtoencfs=self.window.listbox.get(self.index)
+         if os.path.isdir(pathtoencfs)==False:
+               tkinter.messagebox.showinfo("Error","Directory "+pathtoencfs+" not found")
+         else:      
+             self.dcrypt=pathtoencfs+"/.crypt"
+             self.crypt=pathtoencfs+"/crypt"
+             if os.path.isdir(self.crypt)==False:
+                    tkinter.messagebox.showinfo("Info","Mounting point "+self.crypt+" will be created")       
+                    os.mkdir(self.crypt) 
+             if os.path.isdir(self.dcrypt)==True:
+                    tkinter.messagebox.showinfo("Info","Crypted directory "+self.dcrypt+" already exist")
+                    xmlfile=self.dcrypt+"/"+encfsxml
+                    if os.path.isfile(xmlfile)==True:  
+                        tkinter.messagebox.showinfo("Error","Crypted directory is not empty")             
+                    else:
+                        self.changepassword=False
+                        self.newpassword()        
+             else:
+                    tkinter.messagebox.showinfo("Info","Crypted directory "+self.dcrypt+" will be created")       
+                    os.mkdir(self.dcrypt) 
+                    self.changepassword=False
+                    self.newpassword()          
+
+
     def newpassword(self):
            w=self.window.winfo_children() 
            childwindow=False
@@ -225,7 +269,7 @@ class App():
         newb=p1.encode('utf-8')
         if(p1 != p2):
              tkinter.messagebox.showinfo("Error","Passwords do not match")       
-        elif self.changepassword==False:
+        elif self.changepassword==False:  # create new directory
             cmd ="encfs --stdinpass --standard "+self.dcrypt+" "+self.crypt # call encfs to create and mount the crypted directory
             args=shlex.split(cmd)
             
@@ -238,10 +282,10 @@ class App():
             stdout_value, stderr_value = p.communicate(newb) # communicate is a one time action, afterwards p is closed
             xmlfile=self.dcrypt+"/"+encfsxml
             if os.path.isfile(xmlfile)==True:  
-                    tkinter.messagebox.showinfo("Info","Successfully created\n")
+                    tkinter.messagebox.showinfo("Info","Successfully created\n"+stdout_value.decode("utf-8"))
             else:
-                    tkinter.messagebox.showinfo("Error","Failed to create\n"+stdout_value)        
-        else:          
+                    tkinter.messagebox.showinfo("Error","Failed to create\n"+stdout_value.decode("utf-8") )       
+        else:   # change password on existing directory       
  
              # make sure it is unmounte 
              cmd ="fusermount -u "+self.crypt
@@ -253,62 +297,45 @@ class App():
                                   ) # open new process
              stdout_value, stderr_value = p.communicate()# communicate is a one time action, afterwards p is closed 
 
+#######################################################################################################################################
              password=self.window.password.get()
              b=password.encode('utf-8')
-             cmd ="encfsctl passwd "+self.dcrypt
-             args=shlex.split(cmd)
-                                     
-             proc = subprocess.Popen(args,
-                                stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
- 
-             proc.stdin.write(b+b'\n')   
-             proc.stdin.flush()
-             r=proc.stdout.readline()     
-             
-             proc.stdin.write(newb+b'\n') 
-             proc.stdin.flush()
-             r=proc.stdout.readline()    
-    
-             proc.stdin.write(newb+b'\n') 
-             proc.stdin.flush()
-             r=r+proc.stdout.readline()
-             
-             proc.stdin.close()
-             proc.terminate()
-             proc.wait(timeout=0.5)
+             child = pexpect.spawn("encfsctl passwd "+self.dcrypt)
+#             fout = file ("LOG.TXT","wb")
+#             child.logfile_read = fout #use child.logfile to also log writes (passwords!)
+             try:
+                i=child.expect("EncFS Password: ", timeout=2)
+             except:
+                   tkinter.messagebox.showinfo("Error",str(child))
+ #            if i != 0: # Timeout
+             child.sendline(b)
+  #           time.sleep(2)
+          
+             try:
+                i= child.expect("New Encfs Password: ", timeout=2)
+             except:
+                pass
+#                   tkinter.messagebox.showinfo("Error","someting happened") 
+#               if i != 0: # Timeout
+             if child.terminated==False:
+                 child.sendline(p1)
+                 try:
+                        i=child.expect("Verify Encfs Password: ", timeout=2)
+                 except:
+                       tkinter.messagebox.showinfo("Error",str(child))    
+      #               if i != 0: # Timeout
+                 child.sendline(p2)
+    #             try:
+    #                    i=child.expect(" Volume Key successfully updated.", timeout=2)
+    #             except:
+    #                   tkinter.messagebox.showinfo("Error",str(child))    
+             a=child.after
+             before=child.before
+             tkinter.messagebox.showinfo("Info",before.decode("utf-8"))   
         
     def cancelpassword(self):
         self.newpasswordwindow.destroy()
          
-    def create(self):
-         i=self.window.listbox.curselection()
-         if len(i)>0:
-          self.index=i[0]
-         pathtoencfs=self.window.listbox.get(self.index)
-         if os.path.isdir(pathtoencfs)==False:
-               tkinter.messagebox.showinfo("Error","Directory "+pathtoencfs+" not found")
-         else:      
-             self.dcrypt=pathtoencfs+"/.crypt"
-             self.crypt=pathtoencfs+"/crypt"
-             if os.path.isdir(self.crypt)==False:
-                    tkinter.messagebox.showinfo("Info","Mounting point "+self.crypt+" will be created")       
-                    os.mkdir(self.crypt) 
-             if os.path.isdir(self.dcrypt)==True:
-                    tkinter.messagebox.showinfo("Info","Crypted directory "+self.dcrypt+" already exist")
-                    xmlfile=self.dcrypt+"/"+encfsxml
-                    if os.path.isfile(xmlfile)==True:  
-                        tkinter.messagebox.showinfo("Error","Crypted directory is not empty")             
-                    else:
-                        self.changepassword=False
-                        self.newpassword()        
-             else:
-                    tkinter.messagebox.showinfo("Info","Crypted directory "+self.dcrypt+" will be created")       
-                    os.mkdir(self.dcrypt) 
-                    self.changepassword=False
-                    self.newpassword()        
-
     def passwd(self):
          i=self.window.listbox.curselection()
          if len(i)>0:
