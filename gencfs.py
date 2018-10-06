@@ -4,16 +4,8 @@
 # @author urs lindegger urs@linurs.org  
 
 ## @todo 
-# - password does not work okpassword
-#    try with (caution it is not encfs it is encfsctl):
-#       --extpass==/usr/bin/x11-ssh-askpass (I guess it willnot work since it is encfsctl)
-#       pty
-#       pexpect
-# - 1.9.2 should has   encfsctl autopasswd (root dir) -- change password for volume, taking password from standard input. No prompts are issued.
-#       does -S, --stdinpass work (I guess not since it is not encfsctl)?
-# - expect is a command line tool
-
-# - import pexpect with try
+# - license
+# - pyinstaller version
 # - check, after creation i could not mount in the first atempt, in the second it worked 
 # - use tab insted of new window or withdraw() Removes the window from the screen (without destroying it). To redraw the window, use deiconify. 
 #       When the window has been withdrawn, the state method returns “withdrawn”. Top window can be more than once 
@@ -33,17 +25,25 @@
 import os
 import subprocess
 import shlex
-import time
-import pexpect
+import argparse
+import logging
+import sys
 
+try:
+   import pexpect
+   expect=True
+except:
+   expect=False
+   
 import tkinter 
 import tkinter.messagebox 
 import tkinter.filedialog
 
-
+gencfsversion="0.4"
 encfsxml=".encfs6.xml" 
+faviconname='favicon.gif'
 
-class App():
+class app_t():
 ##
 # The constructor for the GUI application   
     def __init__(self):
@@ -70,7 +70,7 @@ class App():
         self.window.title('Gui for EncFs')
         
         # add an icon
-        img = tkinter.PhotoImage(file='favicon.gif')
+        img = tkinter.PhotoImage(file=favicon)
         self.window.call('wm', 'iconphoto', self.window._w, img)
         
         # create the menus   
@@ -221,7 +221,6 @@ class App():
                     self.changepassword=False
                     self.newpassword()          
 
-
     def newpassword(self):
            w=self.window.winfo_children() 
            childwindow=False
@@ -286,53 +285,41 @@ class App():
             else:
                     tkinter.messagebox.showinfo("Error","Failed to create\n"+stdout_value.decode("utf-8") )       
         else:   # change password on existing directory       
- 
-             # make sure it is unmounte 
-             cmd ="fusermount -u "+self.crypt
-             args=shlex.split(cmd)
-             p = subprocess.Popen(args, 
-                                  stdin=subprocess.PIPE, 
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT, # standard err are passed to stdout
-                                  ) # open new process
-             stdout_value, stderr_value = p.communicate()# communicate is a one time action, afterwards p is closed 
-
-#######################################################################################################################################
-             password=self.window.password.get()
-             b=password.encode('utf-8')
-             child = pexpect.spawn("encfsctl passwd "+self.dcrypt)
-#             fout = file ("LOG.TXT","wb")
-#             child.logfile_read = fout #use child.logfile to also log writes (passwords!)
-             try:
-                i=child.expect("EncFS Password: ", timeout=2)
-             except:
-                   tkinter.messagebox.showinfo("Error",str(child))
- #            if i != 0: # Timeout
-             child.sendline(b)
-  #           time.sleep(2)
-          
-             try:
-                i= child.expect("New Encfs Password: ", timeout=2)
-             except:
-                pass
-#                   tkinter.messagebox.showinfo("Error","someting happened") 
-#               if i != 0: # Timeout
-             if child.terminated==False:
-                 child.sendline(p1)
+            if expect==True:
+                 # make sure it is unmounted 
+                 cmd ="fusermount -u "+self.crypt
+                 args=shlex.split(cmd)
+                 p = subprocess.Popen(args, 
+                                      stdin=subprocess.PIPE, 
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT, # standard err are passed to stdout
+                                      ) # open new process
+                 stdout_value, stderr_value = p.communicate()# communicate is a one time action, afterwards p is closed 
+                 # change the password using pexpect 
+                 password=self.window.password.get()
+                 b=password.encode('utf-8')
+                 child = pexpect.spawn("encfsctl passwd "+self.dcrypt)
                  try:
-                        i=child.expect("Verify Encfs Password: ", timeout=2)
+                    child.expect("EncFS Password: ", timeout=2)
                  except:
-                       tkinter.messagebox.showinfo("Error",str(child))    
-      #               if i != 0: # Timeout
-                 child.sendline(p2)
-    #             try:
-    #                    i=child.expect(" Volume Key successfully updated.", timeout=2)
-    #             except:
-    #                   tkinter.messagebox.showinfo("Error",str(child))    
-             a=child.after
-             before=child.before
-             tkinter.messagebox.showinfo("Info",before.decode("utf-8"))   
-        
+                       tkinter.messagebox.showinfo("Error",str(child))
+                 child.sendline(b)             
+                 try:
+                    child.expect("New Encfs Password: ", timeout=2)
+                 except:
+                    pass
+                 if child.terminated==False:
+                     child.sendline(p1)
+                     try:
+                            child.expect("Verify Encfs Password: ", timeout=2)
+                     except:
+                           tkinter.messagebox.showinfo("Error",str(child))    
+                     child.sendline(p2)
+                 before=child.before
+                 tkinter.messagebox.showinfo("Info",before.decode("utf-8"))   
+            else:
+                 tkinter.messagebox.showinfo("Error","pexpect is not installed but required for password change. https://pexpect.readthedocs.io \n") 
+                         
     def cancelpassword(self):
         self.newpasswordwindow.destroy()
          
@@ -347,6 +334,48 @@ class App():
          self.changepassword=True
          self.newpassword()       
 
-## Main program, get persistent data as path to encfs 
 if __name__ == "__main__":
-    App()
+      ## manage the command line parameters
+    # sets default values to variables and modifies their content according the command line parameter passed
+    # additionally it handles the -h and --help command line parameter automatically
+    parser = argparse.ArgumentParser(
+                                     description='modme - A modbus py application', 
+                                     epilog='urs@linurs.org')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s '+gencfsversion)
+    parser.add_argument('-d', '--debug',   help="print debug messages",   action='store_true')  
+
+    # the command line arguments passed
+    args = parser.parse_args()      
+    
+    # Configuring the logger. Levels are DEBUG, INFO, WARNING, ERROR and CRITICAL
+    # the parameter filename='example.log' would write it into a file
+    logging.basicConfig() # init logging 
+    logger = logging.getLogger() # get the root logger 
+    if args.debug==True:
+        logger.setLevel(logging.DEBUG)    # the level producing debug messagesl
+    else:    
+        logger.setLevel(logging.WARNING)
+    logger.debug('Logging debug messages')
+    
+    # stuff to be logged before the logger came alive
+    if expect==False:
+         logger.debug('Packet pexpectl not found')
+    
+    # pyinstaller stuff required to create bundled versions as for windows exe:      
+    frozen = 'not '
+    if getattr(sys, 'frozen', False): # pyinstaller adds the name frozen to sys 
+            frozen = ''  # we are running in a bundle (frozen)
+            bundle_dir = sys._MEIPASS  # temporary folder of pyinstaller
+    else:
+            bundle_dir = os.path.dirname(os.path.abspath(__file__))   # we are running in a normal Python environment 
+   
+    logging.debug('Script is '+frozen+'frozen')
+    logging.debug('Bundle dir is '+bundle_dir )
+    logging.debug('sys.argv[0] is '+sys.argv[0] )
+    logging.debug('sys.executable is '+sys.executable )
+    logging.debug('os.getcwd is '+os.getcwd() )
+
+# makes that the files are found
+    favicon=bundle_dir+os.sep+faviconname    
+    
+    app=app_t()
