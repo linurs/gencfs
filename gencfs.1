@@ -1,5 +1,5 @@
 .\" genservice.1
-.Dd 2013-02-02
+.Dd 2018-10-08
 .Dt GEncFS 1
 .Os
 .Sh NAME
@@ -10,7 +10,10 @@
 .Op input file
 .Sh DESCRIPTION
 .Nm genserv
-This simple gui lets you mount encrypted file systems, using encfs. Before using the GUI the encrypted filesystem must be created using encfs and the command line. It is assumed that the encripted filesystem has the directory name .crypt and will be encrypted to the directory crypt in the same directory as .crypt is. The path to those two directories is also the same and can be defined using GEncFs in a persistant manner. For this purpose GEncFS creates the directory ~/.GEncFs where it stores its information.
+This simple gui lets you mount encrypted file systems, using encfs. 
+It is assumed that the encripted filesystem has the directory name .crypt and will be encrypted to the directory crypt in the same directory as .crypt. 
+The path to those two directories is stored by GEncFs in a persistant manner. 
+For this purpose GEncFS creates the directory ~/.GEncFs.
 
 The program is written in python.
 .Sh Command line options
