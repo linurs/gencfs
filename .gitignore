@@ -1,5 +1,6 @@
 # ignore files
 *.py~
+__init__.py
 gencfs.e4p
 MANIFEST
 

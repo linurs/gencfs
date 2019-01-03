@@ -416,5 +416,14 @@ if __name__ == "__main__":
 
 ## makes that the files are found
     favicon=bundle_dir+os.sep+faviconname    
+    if (os. path. isfile(favicon)==False):
+        logging.debug(favicon+' not found' )
+        favicon="/usr/share/gencfs/"+faviconname
+        logging.debug('so try to find it at '+favicon )
+        if (os. path. isfile(favicon)==False):
+             logging.error(faviconname+' not found')
+             exit()
+        
+        
 ## start the application    
     app=app_t()
