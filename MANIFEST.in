@@ -1,0 +1,1 @@
+include Doxyfile gencfs.1 *.gif *.png *.ico README.md gencfs.spec gencfs.desktop

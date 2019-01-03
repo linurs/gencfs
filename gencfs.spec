@@ -4,7 +4,6 @@ block_cipher = None
 
 
 a = Analysis(['gencfs.py'],
-             pathex=['Z:\\sw\\py3\\gencfs'],
              binaries=[],
              datas=[('*.gif','.')],
              hiddenimports=[],

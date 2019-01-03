@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Gencfs
+Comment=Python3 Tkinter Gui for encfs
+Exec=gencfs
+Icon=gencfs
+Terminal=false
+Type=Application
+Categories=System;
+StartupNotify=true
