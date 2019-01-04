@@ -32,7 +32,7 @@ from tkinter import messagebox
 from tkinter import filedialog    
 
 ## Version of gencfs
-gencfsversion="0.5"
+gencfsversion="0.6"
 
 ## favicon file to seen in window decoration
 faviconname='favicon.gif'
@@ -164,6 +164,7 @@ class app_t():
            self.index=i[0]
          pathtoencfs=self.window.listbox.get(self.index)
          cmd ="fusermount -u "+pathtoencfs+"/crypt"
+         logger.debug(cmd)
          args=shlex.split(cmd)
          p = subprocess.Popen(args, 
                               stdin=subprocess.PIPE, 
@@ -189,6 +190,7 @@ class app_t():
              password=self.window.password.get()
              b=password.encode('utf-8')
              cmd ="encfs --stdinpass "+pathtoencfs+"/.crypt "+pathtoencfs+"/crypt" # call encfs without promting for password
+             logger.debug(cmd)
              args=shlex.split(cmd)
              
              p = subprocess.Popen(args,  
@@ -253,24 +255,30 @@ class app_t():
             self.newpasswordwindow=Toplevel()
             self.newpasswordwindow.protocol("WM_DELETE_WINDOW", self.destroypasswordwindow)
             self.newpasswordwindow.title('Password')
-    
+            
+            ## show what dir is selected
+            self.window.dirtext=Label(self.newpasswordwindow, text='Selected directory', width=20,  anchor=W)
+            self.window.dirtext.grid(column=0,  row=0, sticky= W)
+            self.window.dirvalue=Label(self.newpasswordwindow, text=self.dcrypt, width=40,  anchor=W)
+            self.window.dirvalue.grid(column=1,  row=0, sticky= W)
+            
             ## setup password entry variable
             self.newpassword1=StringVar()
             self.window.passlabel1=Label(self.newpasswordwindow, text='New Password', width=20,  anchor=W)
-            self.window.passlabel1.grid(column=0,  row=0, sticky= W)
+            self.window.passlabel1.grid(column=0,  row=1, sticky= W)
             ## setup password entry        
             self.pass1=Entry(master=self.newpasswordwindow,
                                        textvariable=self.newpassword1, show='*',     width=40 )
-            self.pass1.grid(column=1,  row=0)
+            self.pass1.grid(column=1,  row=1)
             
             ## setup password entry variable for confirmation
             self.newpassword2=StringVar()
             self.window.passlabel2=Label(self.newpasswordwindow, text='Verify Password', width=20,  anchor=W)
-            self.window.passlabel2.grid(column=0,  row=1, sticky= W)
+            self.window.passlabel2.grid(column=0,  row=2, sticky= W)
             ## setup password entry for confirmation
             self.pass2=Entry(master=self.newpasswordwindow,
                                        textvariable=self.newpassword2, show='*',     width=40 )
-            self.pass2.grid(column=1,  row=1)
+            self.pass2.grid(column=1,  row=2)
     
            ## setup the ok button
             self.okbutton=Button(master=self.newpasswordwindow,
@@ -278,7 +286,7 @@ class app_t():
                                               width=20, 
                                               command=self.okpassword)
             self.okbutton.grid(column=1,
-                                         row=2,
+                                         row=3,
                                          sticky=W)
            ## setup the cancel button
             self.cancelbutton=Button(master=self.newpasswordwindow,
@@ -286,7 +294,7 @@ class app_t():
                                               width=20, 
                                               command=self.cancelpassword)
             self.cancelbutton.grid(column=0,
-                                             row=2,
+                                             row=3,
                                              sticky=W)
         elif (expect==False):
                  messagebox.showinfo("Error","pexpect needs to be installed for the password change. Install it. See: https://pexpect.readthedocs.io \n")                                      
@@ -301,6 +309,9 @@ class app_t():
              messagebox.showinfo("Error","Passwords do not match")       
         elif self.changepassword==False:  # create new directory
             cmd ="encfs --stdinpass --standard "+self.dcrypt+" "+self.crypt # call encfs to create and mount the crypted directory
+            logger.debug(cmd)
+            
+            
             args=shlex.split(cmd)
             
             p = subprocess.Popen(args,  
@@ -310,13 +321,15 @@ class app_t():
                               ) # open new process
            
             stdout_value, stderr_value = p.communicate(newb) # communicate is a one time action, afterwards p is closed
-            if len(os.listdir(self.dcrypt))>0:
-                    messagebox.showinfo("Info","Successfully created\n"+stdout_value.decode("utf-8"))
-            else:
+            if len(os.listdir(self.dcrypt))<=0:
+# subprocess.Popen() does not return nice code back on success. Do it with pexpect would need to handle lot of bla bla text. Therfore just create message box on error                 
+#                    messagebox.showinfo("Info","Successfully created\n"+stdout_value.decode("utf-8"))
+#            else:
                     messagebox.showinfo("Error","Failed to create\n"+stdout_value.decode("utf-8") )       
         else:   # change password on existing directory       
                  # make sure it is unmounted 
                  cmd ="fusermount -u "+self.crypt
+                 logger.debug(cmd)
                  args=shlex.split(cmd)
                  p = subprocess.Popen(args, 
                                       stdin=subprocess.PIPE, 
@@ -324,19 +337,24 @@ class app_t():
                                       stderr=subprocess.STDOUT, # standard err are passed to stdout
                                       ) # open new process
                  stdout_value, stderr_value = p.communicate()# communicate is a one time action, afterwards p is closed 
+           
                  # change the password using pexpect 
                  password=self.window.password.get()
                  b=password.encode('utf-8')
-                 child = pexpect.spawn("encfsctl passwd "+self.dcrypt)
+                 cmd="encfsctl passwd "+self.dcrypt
+                 logger.debug(cmd)
+                 child = pexpect.spawn(cmd)
                  try:
                     child.expect("EncFS Password:", timeout=2)
                  except:
                        messagebox.showinfo("Error",str(child))
                  child.sendline(b)             
+                 
                  try:
                     child.expect("New Encfs Password:", timeout=2)
                  except:
                     pass
+                 
                  if child.terminated==False:
                      child.sendline(p1)
                      try:
@@ -344,8 +362,13 @@ class app_t():
                      except:
                            messagebox.showinfo("Error",str(child))    
                      child.sendline(p2)
-                 before=child.before
-                 messagebox.showinfo("Info",before.decode("utf-8"))   
+                 
+                     try:
+                            child.expect("Volume Key successfully updated.", timeout=10)
+                     except:
+                           messagebox.showinfo("Error",str(child))    
+                 after=child.after
+                 messagebox.showinfo("Info",after.decode("utf-8"))   
         self.window.deiconify()            
                          
 ##
