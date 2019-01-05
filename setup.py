@@ -10,7 +10,7 @@ from distutils.core import setup
 setup(
       name="gencfs",
       scripts=["gencfs.py"],
-      version="0.5",
+      version="0.6",
       description='Python3 Tkinter Gui for encfs',
       author='Urs Lindegger',
       author_email='urs@linurs.org',
