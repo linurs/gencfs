@@ -37,6 +37,8 @@ gencfsversion="0.6"
 ## favicon file to seen in window decoration
 faviconname='favicon.gif'
 
+buttonwidth=20
+
 class app_t():
 ##
 # The constructor for the GUI application   
@@ -87,9 +89,9 @@ class app_t():
         self.window.password.pack()
         
         # set up and register the buttons
-        self.window.mountbutton=Button(master=self.window,text='Mount EncFs',command=self.encfsmount)
+        self.window.mountbutton=Button(master=self.window,text='Mount EncFs',width=buttonwidth, command=self.encfsmount)
         self.window.mountbutton.pack()
-        self.window.umountbutton=Button(master=self.window,text='Umount EncFs',command=self.encfsumount)
+        self.window.umountbutton=Button(master=self.window,text='Umount EncFs',width=buttonwidth, command=self.encfsumount)
         self.window.umountbutton.pack()
         
         # set up the listbox and its label
