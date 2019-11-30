@@ -16,6 +16,7 @@
 import os
 import subprocess
 import shlex
+import shutil
 import argparse
 import logging
 import sys
@@ -88,31 +89,41 @@ class app_t():
         self.window.password=Entry(self.window, show='*')
         self.window.password.pack()
         
+        self.window.labelpath=Label(self.window, text='Path to the .crypt and crypt directories')
+        self.window.labelpath.pack()
+        self.dir_gui=StringVar()
+        self.window.pathlabel = Label(master=self.window, textvariable=self.dir_gui)
+        self.window.pathlabel.pack()
+        
         # set up and register the buttons
         self.window.mountbutton=Button(master=self.window,text='Mount EncFs',width=buttonwidth, command=self.encfsmount)
         self.window.mountbutton.pack()
         self.window.umountbutton=Button(master=self.window,text='Umount EncFs',width=buttonwidth, command=self.encfsumount)
         self.window.umountbutton.pack()
+        self.window.openbutton=Button(master=self.window,text='Open EncFs',width=buttonwidth, command=self.encfsopen)
+        self.window.openbutton.pack()
         
         # set up the listbox and its label
-        self.window.labelpath=Label(self.window, text='Path to the .crypt and crypt directories')
-        self.window.labelpath.pack()
-        self.window.listbox = Listbox(self.window,  width=50,  height=5,  selectmode=SINGLE)
+       
+        self.window.listbox = Listbox(self.window,  width=50,  height=5)
+        self.window.listbox.bind('<<ListboxSelect>>', self.listboxchange)
         self.window.listbox.pack()
         for item in pathstoencfs:
           i=item.strip()  
           if len(i)>0:  
             self.window.listbox.insert(END, i)
         self.window.listbox.select_set(0)  # selects the first one, so something is selected    
+        self.dir_gui.set(self.window.listbox.get(0))
         
         self.window.mainloop()      
         
-###
-## Error config file not found
-#    def claim_filecontent(self, pathtoconfig):
-#         messagebox.showerror("Error","Configfile is empty. Add path to "+pathtoconfig+ " for .crypt and crypt")       
-#         self.window.destroy()
-        
+##
+# listbox has changed
+    def listboxchange(self, evt):
+       w = evt.widget
+       index = int(w.curselection()[0])
+       self.dir_gui.set(self.window.listbox.get(index))
+      
 ##
 # Quits the application
     def quit(self):
@@ -209,6 +220,15 @@ class app_t():
              return 0   
          else:
              messagebox.showinfo("mount",pathtoencfs+"/crypt is already mounted")
+
+##
+# opens the encripted directory           
+    def encfsopen(self):
+         pathtoencfs=self.window.listbox.get(self.index)
+         mounted=os.path.ismount(pathtoencfs+"/crypt")
+         if mounted==True:
+            cmd="xdg-open "+pathtoencfs+"/crypt"
+            os.system(cmd)
 
 ##
 # creates .crypt and crypt directories
@@ -424,6 +444,9 @@ if __name__ == "__main__":
     if expect==False:
          logger.debug('Packet pexpectl not found')
     
+    if shutil.which("encfs")=="":
+         logger.error('encfs not found')
+        
     ## pyinstaller stuff required to create bundled versions:      
     frozen = 'not '
     if getattr(sys, 'frozen', False): # pyinstaller adds the name frozen to sys 
