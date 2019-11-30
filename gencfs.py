@@ -4,10 +4,7 @@
 # @author urs lindegger urs@linurs.org  
 
 ## @todo 
-# - license
-# - make clearer what directory is selected
-# - check if encfs is installed (whereis?)
-#
+# - 
 
 ## @mainpage gencfs
 # gencfs is a simple gui for encfs
@@ -16,6 +13,7 @@
 import os
 import subprocess
 import shlex
+import shutil
 import argparse
 import logging
 import sys
@@ -67,6 +65,8 @@ class app_t():
         # add an icon
         img = PhotoImage(file=favicon)
         self.window.call("wm", "iconphoto", self.window, "-default", img)
+        self.window.geometry('400x260-5+40')
+        self.window.resizable(width=FALSE, height=FALSE)
         
         ## create the menus   
         self.menubar = Menu(self.window)
@@ -84,39 +84,83 @@ class app_t():
         
         # add the password label and entry field
         self.window.label=Label(self.window, text='Password')
-        self.window.label.pack()
+        self.window.label.grid(row=1, sticky= W)
         self.window.password=Entry(self.window, show='*')
-        self.window.password.pack()
+        self.window.password.grid(row=2, sticky= W)
         
+        # add the path label and value
+        self.window.labelpath=Label(self.window, text='Path to the .crypt and crypt directories')
+        self.window.labelpath.grid(row=3, sticky= W)
+        self.dir_gui=StringVar()
+        self.window.pathlabel = Label(master=self.window, textvariable=self.dir_gui)
+        self.window.pathlabel.grid(row=4, sticky= W)
+        
+        self.mounted_gui=StringVar()
+        self.window.mountedlabel = Label(master=self.window, textvariable=self.mounted_gui)
+        self.window.mountedlabel.grid(row=5, sticky= W)
+
         # set up and register the buttons
         self.window.mountbutton=Button(master=self.window,text='Mount EncFs',width=buttonwidth, command=self.encfsmount)
-        self.window.mountbutton.pack()
+        self.window.mountbutton.grid(row=6, sticky= W)
         self.window.umountbutton=Button(master=self.window,text='Umount EncFs',width=buttonwidth, command=self.encfsumount)
-        self.window.umountbutton.pack()
+        self.window.umountbutton.grid(row=7, sticky= W)
+        self.window.openbutton=Button(master=self.window,text='Open EncFs',width=buttonwidth, command=self.encfsopen)
+        self.window.openbutton.grid(row=8, sticky= W)
         
         # set up the listbox and its label
-        self.window.labelpath=Label(self.window, text='Path to the .crypt and crypt directories')
-        self.window.labelpath.pack()
-        self.window.listbox = Listbox(self.window,  width=50,  height=5,  selectmode=SINGLE)
-        self.window.listbox.pack()
+        self.window.listbox = Listbox(self.window,  width=50,  height=5)
+        self.window.listbox.bind('<<ListboxSelect>>', self.listboxchange)
+        self.window.listbox.grid(row=9, sticky= W)
         for item in pathstoencfs:
           i=item.strip()  
           if len(i)>0:  
             self.window.listbox.insert(END, i)
         self.window.listbox.select_set(0)  # selects the first one, so something is selected    
+        self.dir_gui.set(self.window.listbox.get(0))
+        self.pathtoencfs=self.window.listbox.get(0)
+        self.update_gui()
         
-        self.window.mainloop()      
+##
+# runs the gui
+    def run(self):
+        self.window.mainloop()        
+
+##
+#
+    def is_mounted(self):
+        return os.path.ismount(self.pathtoencfs+"/crypt")
         
-###
-## Error config file not found
-#    def claim_filecontent(self, pathtoconfig):
-#         messagebox.showerror("Error","Configfile is empty. Add path to "+pathtoconfig+ " for .crypt and crypt")       
-#         self.window.destroy()
+    def update_gui(self):
+        if self.is_mounted()==True:
+            self.mounted_gui.set("Mounted")
+            self.window.mountbutton.config(relief=SUNKEN)
+            self.window.umountbutton.config(relief=RAISED)
+            self.window.openbutton.config(relief=RAISED)
+        else:
+            self.mounted_gui.set("Not Mounted")
+            self.window.mountbutton.config(relief=RAISED)
+            self.window.umountbutton.config(relief=SUNKEN)
+            self.window.openbutton.config(relief=SUNKEN)
         
+##
+# listbox has changed
+    def listboxchange(self, evt):
+       w = evt.widget
+       try:
+         index = int(w.curselection()[0])
+       except:
+            logger.debug("listboxchange exception")
+            logger.debug(w.curselection())
+            index=0
+       self.dir_gui.set(self.window.listbox.get(index))
+       self.pathtoencfs=self.window.listbox.get(index)
+       self.update_gui()
+  
 ##
 # Quits the application
     def quit(self):
            self.window.destroy()
+
 ##
 # updates the config file by re-creating it
     def updateconfig(self):
@@ -125,6 +169,7 @@ class app_t():
         for i in items:
             pathtoconfigfile.write(i+"\n")  
         pathtoconfigfile.close()
+
 ##
 # Check if directory exists alerady
     def existconfig(self, n):
@@ -161,11 +206,7 @@ class app_t():
 ##
 # Mounts the encripted directory
     def encfsumount(self):
-         i=self.window.listbox.curselection()
-         if len(i)>0:
-           self.index=i[0]
-         pathtoencfs=self.window.listbox.get(self.index)
-         cmd ="fusermount -u "+pathtoencfs+"/crypt"
+         cmd ="fusermount -u "+self.pathtoencfs+"/crypt"
          logger.debug(cmd)
          args=shlex.split(cmd)
          p = subprocess.Popen(args, 
@@ -178,20 +219,15 @@ class app_t():
           messagebox.showinfo("umount","Successfully umounted")
          else:  
           messagebox.showinfo("umount",stdout_value)
-         return 0
+         self.update_gui()
 
 ##
 # Un-mounts the encripted directory           
     def encfsmount(self):
-         i=self.window.listbox.curselection()
-         if len(i)>0:
-          self.index=i[0]
-         pathtoencfs=self.window.listbox.get(self.index)
-         mounted=os.path.ismount(pathtoencfs+"/crypt")
-         if mounted==False:
+         if self.is_mounted()==False:
              password=self.window.password.get()
              b=password.encode('utf-8')
-             cmd ="encfs --stdinpass "+pathtoencfs+"/.crypt "+pathtoencfs+"/crypt" # call encfs without promting for password
+             cmd ="encfs --stdinpass "+self.pathtoencfs+"/.crypt "+self.pathtoencfs+"/crypt" # call encfs without promting for password
              logger.debug(cmd)
              args=shlex.split(cmd)
              
@@ -206,24 +242,27 @@ class app_t():
               messagebox.showinfo("mount","Successfully mounted")
              else: 
               messagebox.showinfo("mount",stdout_value)
-             return 0   
+             self.update_gui()   
          else:
-             messagebox.showinfo("mount",pathtoencfs+"/crypt is already mounted")
+             messagebox.showinfo("mount",self.pathtoencfs+"/crypt is already mounted")
+
+##
+# opens the encripted directory           
+    def encfsopen(self):
+         if self.is_mounted()==True:
+            cmd="xdg-open "+self.pathtoencfs+"/crypt"
+            os.system(cmd)
 
 ##
 # creates .crypt and crypt directories
     def create(self):
-         i=self.window.listbox.curselection()
-         if len(i)>0:
-          self.index=i[0]
-         pathtoencfs=self.window.listbox.get(self.index)
-         if os.path.isdir(pathtoencfs)==False:
-               messagebox.showinfo("Error","Directory "+pathtoencfs+" not found")
+         if os.path.isdir(self.pathtoencfs)==False:
+               messagebox.showinfo("Error","Directory "+self.pathtoencfs+" not found")
          else:      
              ## path to encripted directory
-             self.dcrypt=pathtoencfs+"/.crypt"
+             self.dcrypt=self.pathtoencfs+"/.crypt"
              ## mounting point for encripted directory (decrypted directory)
-             self.crypt=pathtoencfs+"/crypt"
+             self.crypt=self.pathtoencfs+"/crypt"
              if os.path.isdir(self.crypt)==False:
                     messagebox.showinfo("Info","Mounting point "+self.crypt+" will be created")       
                     os.mkdir(self.crypt) 
@@ -313,9 +352,7 @@ class app_t():
             cmd ="encfs --stdinpass --standard "+self.dcrypt+" "+self.crypt # call encfs to create and mount the crypted directory
             logger.debug(cmd)
             
-            
             args=shlex.split(cmd)
-            
             p = subprocess.Popen(args,  
                               stdin=subprocess.PIPE, 
                               stdout=subprocess.PIPE,
@@ -324,9 +361,6 @@ class app_t():
            
             stdout_value, stderr_value = p.communicate(newb) # communicate is a one time action, afterwards p is closed
             if len(os.listdir(self.dcrypt))<=0:
-# subprocess.Popen() does not return nice code back on success. Do it with pexpect would need to handle lot of bla bla text. Therfore just create message box on error                 
-#                    messagebox.showinfo("Info","Successfully created\n"+stdout_value.decode("utf-8"))
-#            else:
                     messagebox.showinfo("Error","Failed to create\n"+stdout_value.decode("utf-8") )       
         else:   # change password on existing directory       
                  # make sure it is unmounted 
@@ -382,12 +416,8 @@ class app_t():
 ##
 # change the password of an existing directory
     def passwd(self):
-         i=self.window.listbox.curselection()
-         if len(i)>0:
-          self.index=i[0]
-         pathtoencfs=self.window.listbox.get(self.index)
-         self.dcrypt=pathtoencfs+"/.crypt"
-         self.crypt=pathtoencfs+"/crypt"
+         self.dcrypt=self.pathtoencfs+"/.crypt"
+         self.crypt=self.pathtoencfs+"/crypt"
  
          self.changepassword=True
          self.newpassword()       
@@ -424,6 +454,9 @@ if __name__ == "__main__":
     if expect==False:
          logger.debug('Packet pexpectl not found')
     
+    if shutil.which("encfs")=="":
+         logger.error('encfs not found')
+        
     ## pyinstaller stuff required to create bundled versions:      
     frozen = 'not '
     if getattr(sys, 'frozen', False): # pyinstaller adds the name frozen to sys 
@@ -449,6 +482,6 @@ if __name__ == "__main__":
              logging.error(faviconname+' not found')
              exit()
         
-        
 ## start the application    
     app=app_t()
+    app.run()
