@@ -30,7 +30,7 @@ from tkinter import messagebox
 from tkinter import filedialog    
 
 ## Version of gencfs
-gencfsversion="0.6"
+gencfsversion="0.7"
 
 ## favicon file to seen in window decoration
 faviconname='favicon.gif'
@@ -65,7 +65,6 @@ class app_t():
         # add an icon
         img = PhotoImage(file=favicon)
         self.window.call("wm", "iconphoto", self.window, "-default", img)
-        self.window.geometry('400x260-5+40')
         self.window.resizable(width=FALSE, height=FALSE)
         
         ## create the menus   
@@ -84,33 +83,33 @@ class app_t():
         
         # add the password label and entry field
         self.window.label=Label(self.window, text='Password')
-        self.window.label.grid(row=1, sticky= W)
+        self.window.label.grid(row=1)
         self.window.password=Entry(self.window, show='*')
-        self.window.password.grid(row=2, sticky= W)
+        self.window.password.grid(row=2)
         
         # add the path label and value
         self.window.labelpath=Label(self.window, text='Path to the .crypt and crypt directories')
-        self.window.labelpath.grid(row=3, sticky= W)
+        self.window.labelpath.grid(row=3)
         self.dir_gui=StringVar()
         self.window.pathlabel = Label(master=self.window, textvariable=self.dir_gui)
-        self.window.pathlabel.grid(row=4, sticky= W)
+        self.window.pathlabel.grid(row=4)
         
         self.mounted_gui=StringVar()
         self.window.mountedlabel = Label(master=self.window, textvariable=self.mounted_gui)
-        self.window.mountedlabel.grid(row=5, sticky= W)
+        self.window.mountedlabel.grid(row=5)
 
         # set up and register the buttons
         self.window.mountbutton=Button(master=self.window,text='Mount EncFs',width=buttonwidth, command=self.encfsmount)
-        self.window.mountbutton.grid(row=6, sticky= W)
+        self.window.mountbutton.grid(row=6)
         self.window.umountbutton=Button(master=self.window,text='Umount EncFs',width=buttonwidth, command=self.encfsumount)
-        self.window.umountbutton.grid(row=7, sticky= W)
+        self.window.umountbutton.grid(row=7)
         self.window.openbutton=Button(master=self.window,text='Open EncFs',width=buttonwidth, command=self.encfsopen)
-        self.window.openbutton.grid(row=8, sticky= W)
+        self.window.openbutton.grid(row=8)
         
         # set up the listbox and its label
-        self.window.listbox = Listbox(self.window,  width=50,  height=5)
+        self.window.listbox = Listbox(self.window,  width=50,  height=5,  justify='center')
         self.window.listbox.bind('<<ListboxSelect>>', self.listboxchange)
-        self.window.listbox.grid(row=9, sticky= W)
+        self.window.listbox.grid(row=9)
         for item in pathstoencfs:
           i=item.strip()  
           if len(i)>0:  
@@ -454,7 +453,7 @@ if __name__ == "__main__":
     if expect==False:
          logger.debug('Packet pexpectl not found')
     
-    if shutil.which("encfs")=="":
+    if shutil.which("encfs")==None:
          logger.error('encfs not found')
         
     ## pyinstaller stuff required to create bundled versions:      

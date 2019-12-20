@@ -10,12 +10,12 @@ from distutils.core import setup
 setup(
       name="gencfs",
       scripts=["gencfs.py"],
-      version="0.6",
+      version="0.7",
       description='Python3 Tkinter Gui for encfs',
       author='Urs Lindegger',
       author_email='urs@linurs.org',
       url='https://github.com/linurs/gencfs',
-      download_url = "http://www.linurs.org/download/gencfs-0.5.tgz",
+      download_url = "http://www.linurs.org/download/gencfs-0.7.tgz",
       keywords = ["encfs encryption"],
       classifiers = [
         "Programming Language :: Python",
